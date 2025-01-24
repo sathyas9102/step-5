@@ -1,0 +1,17 @@
+# Create a directory for your project if you don't have one yet
+mkdir myproject
+cd myproject
+
+# Create a virtual environment
+python -m venv venv
+
+# Activate the virtual environment (Windows)
+venv\Scripts\activate
+
+# Install Django
+pip install django
+
+django-admin startproject mysite
+cd mysite
+
+python manage.py startapp users

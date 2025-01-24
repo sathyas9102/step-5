@@ -1,0 +1,154 @@
+Step-by-Step Instructions for Running and Saving Data in Django Shell
+Starting the Django Shell: First, you need to start the Django shell from your terminal. Ensure you're in the root directory of your project.
+
+bash
+Copy code
+python manage.py shell
+Importing Models: Inside the shell, import the models you want to interact with. This includes Department, CustomUser, and DailyActivityReport.
+
+python
+Copy code
+from users.models import CustomUser, Department, DailyActivityReport
+Creating New Department: You can create a department with the following command in the shell:
+
+python
+Copy code
+# Create a new department
+department = Department.objects.create(
+    name='Marketing',
+    description='Handles all marketing activities.'
+)
+This command saves the new department to the database.
+
+Creating a New Custom User: To create a new user with the CustomUser model, you can use create_user or create_superuser methods.
+
+python
+Copy code
+# Create a normal user
+user = CustomUser.objects.create_user(
+    username='john_doe',
+    password='password123',
+    is_admin=True,  # Optionally make this user an admin
+    department=department  # Assign a department to the user
+)
+Alternatively, you can create a superuser (admin):
+
+python
+Copy code
+# Create a superuser
+superuser = CustomUser.objects.create_superuser(
+    username='admin_user',
+    password='adminpassword',
+    department=department
+)
+The create_user and create_superuser methods ensure that user passwords are hashed.
+
+Querying Data: Once data is saved, you can retrieve and manipulate it:
+
+python
+Copy code
+# Get all users
+users = CustomUser.objects.all()
+for user in users:
+    print(user.username, user.is_admin)
+
+# Get all departments
+departments = Department.objects.all()
+for dept in departments:
+    print(dept.name, dept.description)
+Creating a Daily Activity Report: After creating a user, you can create a daily activity report for that user:
+
+python
+Copy code
+# Create a daily activity report for the user
+report = DailyActivityReport.objects.create(
+    user=user,  # Assign the user
+    news_count=5,
+    insta_followers=1500
+)
+Viewing All Reports: Once reports are created, you can view all reports or filter by user:
+
+python
+Copy code
+# View all daily activity reports
+reports = DailyActivityReport.objects.all()
+for report in reports:
+    print(report.user.username, report.news_count, report.insta_followers)
+To filter reports for a specific user:
+
+python
+Copy code
+user_reports = DailyActivityReport.objects.filter(user=user)
+for report in user_reports:
+    print(report.user.username, report.news_count, report.insta_followers)
+Updating Records: If you want to update a record, retrieve the object, modify its attributes, and then save:
+
+python
+Copy code
+# Update the is_admin field for a user
+user = CustomUser.objects.get(username='john_doe')  # Get the user
+user.is_admin = False  # Update the field
+user.save()  # Save the changes to the database
+Deleting a Record: If you want to delete a record, you can do so by calling the delete() method on the object:
+
+python
+Copy code
+user = CustomUser.objects.get(username='john_doe')  # Get the user
+user.delete()  # Delete the user
+Example Output of the Queries
+After running the above queries in the Django shell, you can expect outputs like this:
+
+List of All Departments:
+
+python
+Copy code
+departments = Department.objects.all()
+for dept in departments:
+    print(dept.name, dept.description)
+Output:
+
+css
+Copy code
+Marketing Handles all marketing activities.
+Sales     Handles all sales activities.
+List of All Users:
+
+python
+Copy code
+users = CustomUser.objects.all()
+for user in users:
+    print(user.username, user.is_admin)
+Output:
+
+graphql
+Copy code
+john_doe False
+admin_user True
+List of All Daily Activity Reports:
+
+python
+Copy code
+reports = DailyActivityReport.objects.all()
+for report in reports:
+    print(report.user.username, report.news_count, report.insta_followers)
+Output:
+
+yaml
+Copy code
+john_doe 5 1500
+admin_user 10 2500
+Saving the Data:
+To save the data from the shell, simply run the Python commands that create and modify records as shown above. For example, running this in the shell:
+
+python
+Copy code
+department = Department.objects.create(name='Marketing', description='Handles all marketing activities.')
+This will save the new department object to the database. Similarly, creating a user or a report will automatically persist them in the database.
+
+Where to Run This:
+You run these commands inside the Django shell (python manage.py shell).
+You save the objects immediately when you use methods like create(), save(), etc.
+Conclusion:
+Now you know how to save data into the database using Django's ORM through the shell. The key is using methods like create(), save(), and delete() on model objects. Once the data is saved, you can query it and modify it as needed.
+
+Let me know if you'd like further clarification or help!

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+</head>
+<body>
+    {% comment %} <h2>Admin Dashboard</h2> {% endcomment %}
+    <h2 href="{% url 'users:admin_dashboard' %}">Admin Dashboard</h2>
+
+    
+    <!-- Buttons to choose adding user or adding admin -->
+    <h3>Create User / Admin</h3>
+    <form method="get"> <!-- GET to trigger action -->
+        {% csrf_token %}
+        <button type="submit" name="action" value="add_user">Add User</button>
+        <button type="submit" name="action" value="add_admin">Add Admin</button>
+    </form>
+
+    <!-- Form to add user -->
+    {% if action == 'add_user' %}
+    <h3>Create User</h3>
+        <form method="post">
+            {% csrf_token %}
+            
+            <label for="username">Username:</label>
+            <input type="text" name="username" required><br><br>
+            
+            <label for="password">Password:</label>
+            <input type="password" name="password" required><br><br>
+            
+            {% comment %} <label for="department">Department:</label>
+            <select name="department" required>
+                {% for department in departments %}
+                    <option value="{{ department.name }}">{{ department.name }}</option>
+                {% endfor %}
+            </select><br><br> {% endcomment %}
+
+            <button type="submit">Create User</button>
+        </form>
+    {% endif %}
+
+    <!-- Form to add admin -->
+    {% if action == 'add_admin' %}
+    <h3>Create Admin</h3>
+        <form method="post">
+            {% csrf_token %}
+            
+            <label for="username">Username:</label>
+            <input type="text" name="username" required><br><br>
+            
+            <label for="password">Password:</label>
+            <input type="password" name="password" required><br><br>
+            
+            <label for="department">Department:</label>
+            <select name="department" required>
+                {% comment %} {% for department in departments %}
+                    <option value="{{ department.name }}">{{ department.name }}</option>
+                {% endfor %} {% endcomment %}
+                <option value="IT">IT</option>
+            </select><br><br>
+
+            <!-- Additional fields for adding an admin -->
+            <label for="permissions">Permissions:</label><br>
+            <input type="checkbox" name="permissions" value="can_edit"> Edit User<br>
+            <input type="checkbox" name="permissions" value="can_delete"> Delete User<br>
+            <input type="checkbox" name="permissions" value="can_add_admin"> Add Admin<br><br>
+
+            <button type="submit">Create Admin</button>
+        </form>
+    {% endif %}
+
+    {% if error %}
+    <p style="color: red;">{{ error }}</p>
+{% endif %}
+</body>
+</html>
+---------------------------------------
+@login_required
+def admin_dashboard(request):
+    action = request.GET.get('action')
+    # departments = Department.objects.all()
+
+    if request.method == 'POST':
+        # Get the form data
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        # department_name = request.POST.get('department')
+
+        # Check if the department exists
+        # try:
+        #     department = Department.objects.get(name=department_name)
+        # except Department.DoesNotExist:
+        #     return render(request, 'users/admin_dashboard.html', {
+        #         'action': action,
+        #         'departments': departments,
+        #         'error': f"Department {department_name} does not exist!"
+        #     })
+
+        # Check if the username already exists
+        if CustomUser.objects.filter(username=username).exists():
+            return render(request, 'users/admin_dashboard.html', {
+                'action': action,
+                # 'departments': departments,
+                'error': f"Username {username} already exists!"
+            })
+
+        # Create the user based on the action
+        if action == 'add_user':
+            user = CustomUser.objects.create_user(username=username, password=password)
+            user.save()
+
+        elif action == 'add_admin':
+            user = CustomUser.objects.create_user(username=username, password=password)
+            user.is_staff = True
+            user.save()
+
+            permissions = request.POST.getlist('permissions')
+            if 'can_edit' in permissions:
+                user.can_edit = True
+            if 'can_delete' in permissions:
+                user.can_delete = True
+            if 'can_add_admin' in permissions:
+                user.can_add_admin = True
+            user.save()
+
+        # Redirect to the same page after the operation
+        return redirect('users:admin_dashboard')
+
+    return render(request, 'users/admin_dashboard.html', {
+        'action': action,
+        # 'departments': departments
+    })
+
+    --------------------------------
+
+    @login_required
+def daily_activity(request, department_name):
+    user = request.user
+
+    if user.department.name.lower() != department_name.lower():
+        messages.error(request, "You don't have access to this department's directory.")
+        return redirect('users:daily_activity')
+
+    today = date.today()
+    daily_reports = DailyActivityReport.objects.filter(user__department__name=department_name, date=today)
+
+    if request.method == 'POST':
+        form = DailyActivityReportForm(request.POST)
+
+        if form.is_valid():
+            activity_report = form.save(commit=False)
+            activity_report.user = user
+            activity_report.save()
+            messages.success(request, f"Your daily activity report for {department_name} has been updated.")
+            return redirect(f'users:daily_activity_{department_name.lower()}')
+    else:
+        form = DailyActivityReportForm()
+
+    return render(request, f'users/daily_activity_{department_name.lower()}.html', {
+        'daily_reports': daily_reports,
+    })
+-----------------------------
+def custom_login(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        # Authenticate the user
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            print(f"Authenticated user: {user.username}")
+            auth_login(request, user)
+
+            # Get the user's department or default to 'General'
+            user_department = user.department.name if user.department else "General"
+            department_url = user_department.lower() if user_department else "general"
+
+            if user.is_superuser:
+                print("User is superuser (admin)")
+                return redirect('users:admin_dashboard')  # Redirect to admin dashboard
+            else:
+                print(f"User is not admin, redirecting to daily activity for {department_url}")
+                # Redirect to the correct department-specific URL
+                return redirect('users:daily_activity', department_name='some_department')
+
+        else:
+            print("Authentication failed.")
+            messages.error(request, "Invalid username or password!")
+            return render(request, 'users/login.html')
+
+    return render(request, 'users/login.html')
+
+------------------------------------------------
+
+@login_required
+def daily_activity(request, department_name):
+    user = request.user
+
+    # Check if user belongs to the department
+    if not user.department or user.department.name.lower() != department_name.lower():
+        messages.error(request, "You don't have access to this department's directory.")
+        return redirect('users:login')
+
+    # If the user is already on the correct page, avoid redirection
+    if user.department and user.department.name.lower() == department_name.lower():
+        today = date.today()
+        daily_reports = DailyActivityReport.objects.filter(user__department__name=department_name, date=today)
+
+    # Handle form submission
+    if request.method == 'POST':
+        form = DailyActivityReportForm(request.POST)
+
+        if form.is_valid():
+            activity_report = form.save(commit=False)
+            activity_report.user = user
+            activity_report.save()
+            messages.success(request, f"Your daily activity report for {department_name} has been updated.")
+            return redirect(f'users:daily_activity_{department_name.lower()}')  # Redirect to the updated activity page
+
+    else:
+        form = DailyActivityReportForm()  # Empty form for GET request
+
+    # Render the template and pass the form and daily_reports to the context
+    return render(request, f'users/daily_activity_{department_name.lower()}.html', {
+        'form': form,                # Add the form to the context
+        'daily_reports': daily_reports,
+        'department_name': department_name  # Optionally pass department_name for template use
+    })
